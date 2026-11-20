@@ -211,14 +211,15 @@ def evalp(s):
   t=tk(p);c=cl(p)
   if t==6:continue
   v=MT[t];r=i>>3;f=i&7
+  if c==1:r=7-r;f=7-f
   if t==1:s0+=(v+PA[r]+PF[f])if c==0 else-(v+PA[r]+PF[f])
   elif t==2:s0+=(v+5*(7-abs(r-3)-abs(f-3)))if c==0 else-(v+5*(7-abs(r-3)-abs(f-3)))
   elif t==3:s0+=(v+5*(7-abs(r-3)-abs(f-3)))if c==0 else-(v+5*(7-abs(r-3)-abs(f-3)))
   elif t==4:s0+=(v+5*(7-abs(r-3)-abs(f-3))+3*(r==6 or r==1))if c==0 else-(v+5*(7-abs(r-3)-abs(f-3))+3*(r==1 or r==6))
   elif t==5:s0+=(v+3*(7-abs(r-3)-abs(f-3)))if c==0 else-(v+3*(7-abs(r-3)-abs(f-3)))
  wk=king[0];bk=king[1]
- if wk>=0:s0+=80-12*(7-wk>>3)
- if bk>=0:s0-=80-12*(7-bk>>3)
+ if wk>=0:s0+=80-12*(7-(wk>>3))
+ if bk>=0:s0-=80-12*(7-(bk>>3))
  if wk>=0 and (wk&7==0 or wk&7==7):s0+=15
  if bk>=0 and (bk&7==0 or bk&7==7):s0-=15
  for i in range(64):
@@ -318,8 +319,8 @@ def choose(fen,legal):
  g=fen.split()
  if len(g)>1 and g[1]=='b':s=1
  best=None;bs=-100001
+ LIMIT=300000
  for depth in range(1,8):
-  LIMIT=300000
   bm=None;bv=-100000
   for m in legal:
    mi=parse_uci(m)
@@ -341,8 +342,10 @@ def main():
  ENV_URL=os.environ.get('MAKEFUN_ENV_URL') or sys.exit('MAKEFUN_ENV_URL not set')
  while 1:
   g=post('/game',{})
+  if g.get('status')=='done':
+   break
   while g.get('status')=='your_move':
    L=g.get('legal_moves',[])
    if not L:sys.exit('no legal')
    g=post('/move',{'game':g.get('game'),'move':choose(g.get('fen',''),L)})
- if __name__=='__main__':main()
+if __name__=='__main__':main()
