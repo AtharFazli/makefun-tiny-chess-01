@@ -140,11 +140,11 @@ def gen(side):
 def is_legal(side,m):
  f=m>>12;t=m>>6&63;p=B[f];c=cl(p);t0=tk(p)
  if t0==1:
-  if t-f==16 or f-t==16:return True
-  if t==f+1 and not B[t] and f%8 in(1,3):return False
-  if t==f-1 and not B[t] and f%8 in(5,7):return False
-  if epk>=0 and t==epk:return False
-  return True
+     if t-f==16 or f-t==16:return True
+     if t==f+8 and not B[t]:return False
+     if t==f-8 and not B[t]:return False
+     if epk>=0 and t==epk:return False
+     return True
  if t0==6:
   if castle&1 and f==sq(4,7) and not B[sq(5,7)] and not B[sq(6,7)] and not attacked(sq(6,7),0):return sq(6,7)==t
   if castle&2 and f==sq(4,7) and not B[sq(3,7)] and not B[sq(2,7)] and not attacked(sq(2,7),0):return sq(2,7)==t
@@ -219,7 +219,7 @@ def evalp(s):
   elif t==5:s0+=(v+3*(7-abs(r-3)-abs(f-3)))if c==0 else-(v+3*(7-abs(r-3)-abs(f-3)))
  wk=king[0];bk=king[1]
  if wk>=0:s0+=80-12*(7-(wk>>3))
- if bk>=0:s0-=80-12*(7-(bk>>3))
+ if bk>=0:s0+=12*(bk>>3)-80
  if wk>=0 and (wk&7==0 or wk&7==7):s0+=15
  if bk>=0 and (bk&7==0 or bk&7==7):s0-=15
  for i in range(64):
@@ -229,6 +229,8 @@ def evalp(s):
   c=cl(p);r=i>>3
   if c==0 and r>1 and not B[i-8] and not B[i-16]:s0+=8
   if c==1 and r<6 and not B[i+8] and not B[i+16]:s0-=8
+ static=s0
+ if s==1:s0=-static
  s0+=8*len(gen(s))
  return s0
 def hashf():
@@ -249,16 +251,14 @@ def quiesce(s,a,b):
  if sc>=b:return b
  if sc>a:a=sc
  for m in gen(s):
-  if B[(m>>6)&63]:
-   make(m)
-   sc=-quiesce(s^1,-b,-a)
-   unmake(m)
-   if sc>=b:return b
-   if sc>a:a=sc
+     make(m)
+     sc=-quiesce(s^1,-b,-a)
+     unmake(m)
+     if sc>=b:return b
+     if sc>a:a=sc
  return a
 def search(s,d,af,bf):
  global TV,TF
- if in_check(s):return 100000 if s==0 else-100000
  if d<=0:return quiesce(s,af,bf)
  if node_lim():return af
  h=hashf()%2048
@@ -293,16 +293,15 @@ def search(s,d,af,bf):
  captures.sort(key=lambda m:MT[tk(B[(m>>6)&63])]-MT[tk(B[(m>>12)])],reverse=True)
  for m in quiets:
   if m==pk:kil[0]=nk;kil[1]=pk;continue
-  ordered.append(m)
  quiets.sort(key=lambda m:hist[m>>12],reverse=True)
- ordered+=quiets
  for m in captures:
   if m not in ordered:ordered.append(m)
+ ordered+=quiets
  if kil[0]>=0:ordered.insert(0,kil[0])
  if kil[1]>=0:ordered.insert(1,kil[1])
  for m in ordered:
    make(m)
-   sc=-search(s^1,d-1,-bf,af)
+   sc=-search(s^1,d-1,-bf,-af)
    unmake(m)
    if sc>af:
     af=sc
@@ -324,9 +323,9 @@ def choose(fen,legal):
   bm=None;bv=-100000
   for m in legal:
    mi=parse_uci(m)
-   if not is_legal(0,mi):continue
+   if not is_legal(s,mi):continue
    make(mi)
-   sc=-search(1-s,depth-1,-100000,100000) if not in_check(0) else -100000
+   sc=search(s,depth-1,-100000,100000)
    unmake(mi)
    if sc>bv:bv=sc;bm=mi
   if bm is not None and bv>bs:
