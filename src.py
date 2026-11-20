@@ -212,9 +212,9 @@ def evalp(s):
   if t==6:continue
   v=MT[t];r=i>>3;f=i&7
   if t==1:s0+=(v+PA[r]+PF[f])if c==0 else-(v+PA[r]+PF[f])
-  elif t==2:s0+=(v+6*(7-abs(r-3)-abs(f-3)))if c==0 else-(v+6*(7-abs(r-3)-abs(f-3)))
+  elif t==2:s0+=(v+5*(7-abs(r-3)-abs(f-3)))if c==0 else-(v+5*(7-abs(r-3)-abs(f-3)))
   elif t==3:s0+=(v+5*(7-abs(r-3)-abs(f-3)))if c==0 else-(v+5*(7-abs(r-3)-abs(f-3)))
-  elif t==4:s0+=(v+(8 if r==6 else(4 if f in(3,4)and r==0 else 0)))if c==0 else-(v+(8 if r==6 else(4 if f in(3,4)and r==0 else 0)))
+  elif t==4:s0+=(v+5*(7-abs(r-3)-abs(f-3))+3*(r==6 or r==1))if c==0 else-(v+5*(7-abs(r-3)-abs(f-3))+3*(r==1 or r==6))
   elif t==5:s0+=(v+3*(7-abs(r-3)-abs(f-3)))if c==0 else-(v+3*(7-abs(r-3)-abs(f-3)))
  wk=king[0];bk=king[1]
  if wk>=0:s0+=80-12*(7-wk>>3)
