@@ -7,7 +7,7 @@ B=[0]*64
 castle=0
 ep=-1
 epk=-1
-king=[0]*2
+king=[-1,-1]
 hist=[0]*8192
 kil=[-1,-1]
 TH=[0]*2048
@@ -20,7 +20,7 @@ zn=[]
 def sq(f,r):return r*8+f
 def tk(p):return p>>3
 def cl(p):return p&1
-def st(s):return s//BS
+def st(s):return s//8
 def ft(s):return s%8
 def hinit():
  global zn
@@ -140,11 +140,11 @@ def gen(side):
 def is_legal(side,m):
  f=m>>12;t=m>>6&63;p=B[f];c=cl(p);t0=tk(p)
  if t0==1:
-     if t-f==16 or f-t==16:return True
-     if t==f+8 and not B[t]:return False
-     if t==f-8 and not B[t]:return False
-     if epk>=0 and t==epk:return False
-     return True
+  if t-f==16 or f-t==16:return True
+  if t==f+8 and not B[t]:return False
+  if t==f-8 and not B[t]:return False
+  if epk>=0 and t==epk:return False
+  return True
  if t0==6:
   if castle&1 and f==sq(4,7) and not B[sq(5,7)] and not B[sq(6,7)] and not attacked(sq(6,7),0):return sq(6,7)==t
   if castle&2 and f==sq(4,7) and not B[sq(3,7)] and not B[sq(2,7)] and not attacked(sq(2,7),0):return sq(2,7)==t
@@ -240,22 +240,22 @@ def hashf():
  if castle:h^=zn[128+castle]
  if ep>=0:h^=zn[192+ep]
  return h
-import time as _t
-N0=[0];LIMIT=0;BMV=None
+N0=[0];LIMIT=15000
 def node_lim():
  N0[0]+=1
  if N0[0]>LIMIT:return True
  return False
 def quiesce(s,a,b):
+ if node_lim():return a
  sc=evalp(s)
  if sc>=b:return b
  if sc>a:a=sc
  for m in gen(s):
-     make(m)
-     sc=-quiesce(s^1,-b,-a)
-     unmake(m)
-     if sc>=b:return b
-     if sc>a:a=sc
+  make(m)
+  sc=-quiesce(s^1,-b,-a)
+  unmake(m)
+  if sc>=b:return b
+  if sc>a:a=sc
  return a
 def search(s,d,af,bf):
  global TV,TF
@@ -272,8 +272,8 @@ def search(s,d,af,bf):
  mv=TM[h]
  cand=[]
  if mv:
-  f=mv>>12;t=mv>>6&63
-  if B[t] and B[f]:cand.append(mv)
+  f=mv>>12;t=mv>>6&63;p=B[f]
+  if B[t] and p and 1 <= (p>>3) <= 5:cand.append(mv)
  for m in gen(s):
   if m!=mv:cand.append(m)
  if not cand:cand=gen(s)
@@ -284,13 +284,15 @@ def search(s,d,af,bf):
  captures=[]
  quiets=[]
  for m in cand:
+  f_sq=m>>12
+  fp=B[f_sq]
   t=(B[(m>>6)&63])>>3
-  if t==6:continue
+  if t==6 or fp==0 or (fp>>3)==6:continue
   if B[(m>>6)&63]:
    captures.append(m)
   else:
    quiets.append(m)
- captures.sort(key=lambda m:MT[tk(B[(m>>6)&63])]-MT[tk(B[(m>>12)])],reverse=True)
+ captures.sort(key=lambda m:(MT[tk(B[(m>>6)&63])]-MT[tk(B[(m>>12)])],m),reverse=True)
  for m in quiets:
   if m==pk:kil[0]=nk;kil[1]=pk;continue
  quiets.sort(key=lambda m:hist[m>>12],reverse=True)
@@ -300,26 +302,28 @@ def search(s,d,af,bf):
  if kil[0]>=0:ordered.insert(0,kil[0])
  if kil[1]>=0:ordered.insert(1,kil[1])
  for m in ordered:
-   make(m)
-   sc=-search(s^1,d-1,-bf,-af)
-   unmake(m)
-   if sc>af:
-    af=sc
-    if sc>=bf:return sc
-    if sc>best:best=sc;best_m=m
-   if af>=bf:break
+  make(m)
+  sc=-search(s^1,d-1,-bf,-af)
+  unmake(m)
+  if sc>af:
+   af=sc
+   if sc>=bf:return sc
+   if sc>best:best=sc;best_m=m
+  if af>=bf:break
  if best<af:TV[h]=af;TF[h]=2
- elif best>af:TV[h]=best;TF[h]=3
+ elif best>af:TV[h]=best;TF[h]=1
  TM[h]=best_m
- return best
+ return af
 def choose(fen,legal):
  setup(fen)
  s=0
  g=fen.split()
  if len(g)>1 and g[1]=='b':s=1
  best=None;bs=-100001
- LIMIT=300000
- for depth in range(1,8):
+ BUDGET=50000;MAXD=20;N0[0]=0
+ global LIMIT
+ for depth in range(1,MAXD+1):
+  LIMIT=BUDGET
   bm=None;bv=-100000
   for m in legal:
    mi=parse_uci(m)
@@ -330,6 +334,7 @@ def choose(fen,legal):
    if sc>bv:bv=sc;bm=mi
   if bm is not None and bv>bs:
    bs=bv;best=bm;BMV=bm
+  if node_lim():break
  return uc(best) if best else legal[0]
 def post(p,b):
  req=U.Request(ENV_URL+p,data=json.dumps(b).encode(),headers={'content-type':'application/json'})
@@ -341,8 +346,7 @@ def main():
  ENV_URL=os.environ.get('MAKEFUN_ENV_URL') or sys.exit('MAKEFUN_ENV_URL not set')
  while 1:
   g=post('/game',{})
-  if g.get('status')=='done':
-   break
+  if g.get('status')=='done':break
   while g.get('status')=='your_move':
    L=g.get('legal_moves',[])
    if not L:sys.exit('no legal')
