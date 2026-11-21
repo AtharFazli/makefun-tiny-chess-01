@@ -222,6 +222,12 @@ def evalp(s):
  if bk>=0:s0+=12*(bk>>3)-80
  if wk>=0 and (wk&7==0 or wk&7==7):s0+=15
  if bk>=0 and (bk&7==0 or bk&7==7):s0-=15
+ n=0
+ for i in range(64):
+  p=B[i]
+  if not p:continue
+  if tk(p)==3 and n<2: n+=1
+ if n==2:s0+=10
  for i in range(64):
   p=B[i]
   if not p:continue
@@ -231,7 +237,7 @@ def evalp(s):
   if c==1 and r<6 and not B[i+8] and not B[i+16]:s0-=8
  static=s0
  if s==1:s0=-static
- s0+=8*len(gen(s))
+ s0+=12*len(gen(s))
  return s0
 def hashf():
  h=0
